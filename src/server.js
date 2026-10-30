@@ -48,7 +48,8 @@ app.use(cors({
     'x-client-type',
     'Cookie'
   ],
-  exposedHeaders: ['Set-Cookie', 'x-csrf-token']
+  exposedHeaders: ['Set-Cookie', 'x-csrf-token'],
+  maxAge: 86400
 }));
 
 // 2. Cookie Parser
@@ -63,7 +64,7 @@ const sessionStore = new MySQLStore({
   clearExpired: true,
   checkExpirationInterval: 900000, // 15 mins
   expiration: 86400000, // 1 day
-  createDatabaseTable: true,
+  createDatabaseTable: false,
   schema: {
     tableName: 'sessions',
     columnNames: {
