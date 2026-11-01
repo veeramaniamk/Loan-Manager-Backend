@@ -7,13 +7,13 @@ This document provides complete instructions and Kotlin / Retrofit code examples
 ## 1. Security & Validation Architecture
 
 Every protected endpoint crosses a mandatory **4-layer validation pipeline**:
-1. **Session Validation**: Active session stored in server MySQL `sessions` table.
+1. **Session Validation**: Active session stored in server MySQL `loan_sessions` table.
 2. **Cookie Validation**: Session cookie (`connect.sid`) or auth cookies sent with request.
 3. **CSRF Token Validation**: `x-csrf-token` header matching the issued token.
 4. **JWT Authorization & Authentication**: Valid `Authorization: Bearer <token>` header.
 5. **Cross-Check Verification**: User ID encoded inside the JWT payload must match the User ID inside the active session.
 
-> **Security Failure Logging**: If any request fails any of the above checks, the full request details (IP address, client type, HTTP method, URL, headers, query, params, body, and exact failure reason) are automatically persisted into the `security_logs` table in MySQL.
+> **Security Failure Logging**: If any request fails any of the above checks, the full request details (IP address, client type, HTTP method, URL, headers, query, params, body, and exact failure reason) are automatically persisted into the `loan_security_logs` table in MySQL.
 
 ---
 

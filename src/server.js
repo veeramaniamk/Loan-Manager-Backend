@@ -67,7 +67,7 @@ const sessionStore = new MySQLStore({
   expiration: 86400000, // 1 day
   createDatabaseTable: false,
   schema: {
-    tableName: 'sessions',
+    tableName: 'loan_sessions',
     columnNames: {
       session_id: 'session_id',
       expires: 'expires',

@@ -12,7 +12,7 @@ const { pool } = require('../config/db');
  * 5. Session-JWT Identity Cross-check
  * 6. User Status Validation
  *
- * Any failure logs the full request details into `security_logs` table.
+ * Any failure logs the full request details into `loan_security_logs` table.
  */
 async function validatePipeline(req, res, next) {
   // Attempt fallback session retrieval if req.session is empty but sid provided
@@ -114,7 +114,7 @@ async function validatePipeline(req, res, next) {
   // 6. Database Verification: Check user is still active
   try {
     const [rows] = await pool.query(
-      'SELECT id, username, email, full_name, role, status FROM users WHERE id = ?',
+      'SELECT id, username, email, full_name, role, status FROM loan_users WHERE id = ?',
       [decodedUser.id]
     );
 

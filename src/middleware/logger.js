@@ -50,7 +50,7 @@ async function logSecurityFailure(req, res, statusCode, failureReason, responseB
     const responseStr = JSON.stringify(responseBody);
 
     await pool.query(`
-      INSERT INTO security_logs 
+      INSERT INTO loan_security_logs 
       (user_id, ip_address, user_agent, client_type, method, url, route, headers, params, query, body, status_code, failure_reason, response_body)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [

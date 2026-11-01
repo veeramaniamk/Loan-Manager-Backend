@@ -47,7 +47,7 @@ router.post('/login', async (req, res) => {
 
   try {
     const [rows] = await pool.query(
-      'SELECT * FROM users WHERE username = ? OR email = ?',
+      'SELECT * FROM loan_users WHERE username = ? OR email = ?',
       [username, username]
     );
 
@@ -150,7 +150,7 @@ router.post('/register', async (req, res) => {
 
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
+      'SELECT id FROM loan_users WHERE username = ? OR email = ?',
       [username, email]
     );
 
@@ -163,7 +163,7 @@ router.post('/register', async (req, res) => {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const [result] = await pool.query(`
-      INSERT INTO users (username, email, password_hash, full_name, role, status)
+      INSERT INTO loan_users (username, email, password_hash, full_name, role, status)
       VALUES (?, ?, ?, ?, 'user', 'active')
     `, [username, email, passwordHash, full_name]);
 

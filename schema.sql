@@ -2,8 +2,8 @@
 CREATE DATABASE IF NOT EXISTS loan_manager_db CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 USE loan_manager_db;
 
--- 1. Users Table
-CREATE TABLE IF NOT EXISTS users (
+-- 1. Users Table (loan_users)
+CREATE TABLE IF NOT EXISTS loan_users (
   id INT AUTO_INCREMENT PRIMARY KEY,
   username VARCHAR(50) NOT NULL UNIQUE,
   email VARCHAR(100) NOT NULL UNIQUE,
@@ -15,8 +15,8 @@ CREATE TABLE IF NOT EXISTS users (
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ) ENGINE=InnoDB;
 
--- 2. People Table (Borrowers / Lenders)
-CREATE TABLE IF NOT EXISTS people (
+-- 2. People Table (Borrowers / Lenders - loan_people)
+CREATE TABLE IF NOT EXISTS loan_people (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   name VARCHAR(100) NOT NULL,
@@ -27,11 +27,11 @@ CREATE TABLE IF NOT EXISTS people (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   INDEX idx_people_user (user_id),
-  CONSTRAINT fk_people_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_people_user FOREIGN KEY (user_id) REFERENCES loan_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 3. Loans Table
-CREATE TABLE IF NOT EXISTS loans (
+-- 3. Loans Table (loan_loans)
+CREATE TABLE IF NOT EXISTS loan_loans (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   person_id INT NOT NULL,
@@ -49,11 +49,11 @@ CREATE TABLE IF NOT EXISTS loans (
   INDEX idx_loans_person (person_id),
   INDEX idx_loans_due_date (due_date),
   INDEX idx_loans_status (status),
-  CONSTRAINT fk_loans_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-  CONSTRAINT fk_loans_person FOREIGN KEY (person_id) REFERENCES people(id) ON DELETE CASCADE
+  CONSTRAINT fk_loans_user FOREIGN KEY (user_id) REFERENCES loan_users(id) ON DELETE CASCADE,
+  CONSTRAINT fk_loans_person FOREIGN KEY (person_id) REFERENCES loan_people(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 4. Loan Payments Table
+-- 4. Loan Payments Table (loan_payments)
 CREATE TABLE IF NOT EXISTS loan_payments (
   id INT AUTO_INCREMENT PRIMARY KEY,
   loan_id INT NOT NULL,
@@ -66,12 +66,12 @@ CREATE TABLE IF NOT EXISTS loan_payments (
   INDEX idx_payments_loan (loan_id),
   INDEX idx_payments_user (user_id),
   INDEX idx_payments_date (payment_date),
-  CONSTRAINT fk_payments_loan FOREIGN KEY (loan_id) REFERENCES loans(id) ON DELETE CASCADE,
-  CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  CONSTRAINT fk_payments_loan FOREIGN KEY (loan_id) REFERENCES loan_loans(id) ON DELETE CASCADE,
+  CONSTRAINT fk_payments_user FOREIGN KEY (user_id) REFERENCES loan_users(id) ON DELETE CASCADE
 ) ENGINE=InnoDB;
 
--- 5. Security & Request Failure Logs Table
-CREATE TABLE IF NOT EXISTS security_logs (
+-- 5. Security & Request Failure Logs Table (loan_security_logs)
+CREATE TABLE IF NOT EXISTS loan_security_logs (
   id BIGINT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NULL,
   ip_address VARCHAR(60) NULL,
@@ -91,4 +91,12 @@ CREATE TABLE IF NOT EXISTS security_logs (
   INDEX idx_logs_created_at (created_at),
   INDEX idx_logs_status (status_code),
   INDEX idx_logs_user (user_id)
+) ENGINE=InnoDB;
+
+-- 6. Sessions Table (loan_sessions)
+CREATE TABLE IF NOT EXISTS loan_sessions (
+  session_id VARCHAR(128) COLLATE utf8mb4_bin NOT NULL,
+  expires INT(11) UNSIGNED NOT NULL,
+  data MEDIUMTEXT COLLATE utf8mb4_bin,
+  PRIMARY KEY (session_id)
 ) ENGINE=InnoDB;

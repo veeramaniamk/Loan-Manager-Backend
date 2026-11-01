@@ -25,23 +25,23 @@ router.get('/users', async (req, res) => {
         u.status,
         u.created_at,
         u.updated_at,
-        (SELECT COUNT(*) FROM loans WHERE user_id = u.id) as total_loans,
-        (SELECT COUNT(*) FROM people WHERE user_id = u.id) as total_contacts,
-        COALESCE((SELECT SUM(principal_amount) FROM loans WHERE user_id = u.id AND type = 'given'), 0) as total_given_principal,
-        COALESCE((SELECT SUM(principal_amount) FROM loans WHERE user_id = u.id AND type = 'taken'), 0) as total_taken_principal,
+        (SELECT COUNT(*) FROM loan_loans WHERE user_id = u.id) as total_loans,
+        (SELECT COUNT(*) FROM loan_people WHERE user_id = u.id) as total_contacts,
+        COALESCE((SELECT SUM(principal_amount) FROM loan_loans WHERE user_id = u.id AND type = 'given'), 0) as total_given_principal,
+        COALESCE((SELECT SUM(principal_amount) FROM loan_loans WHERE user_id = u.id AND type = 'taken'), 0) as total_taken_principal,
         COALESCE((
           SELECT SUM(pay.amount) 
           FROM loan_payments pay 
-          JOIN loans l_sub ON pay.loan_id = l_sub.id 
+          JOIN loan_loans l_sub ON pay.loan_id = l_sub.id 
           WHERE l_sub.user_id = u.id AND l_sub.type = 'given'
         ), 0) as total_given_repaid,
         COALESCE((
           SELECT SUM(pay.amount) 
           FROM loan_payments pay 
-          JOIN loans l_sub ON pay.loan_id = l_sub.id 
+          JOIN loan_loans l_sub ON pay.loan_id = l_sub.id 
           WHERE l_sub.user_id = u.id AND l_sub.type = 'taken'
         ), 0) as total_taken_repaid
-      FROM users u
+      FROM loan_users u
       ORDER BY u.created_at DESC
     `);
 
@@ -78,7 +78,7 @@ router.post('/users', async (req, res) => {
 
   try {
     const [existing] = await pool.query(
-      'SELECT id FROM users WHERE username = ? OR email = ?',
+      'SELECT id FROM loan_users WHERE username = ? OR email = ?',
       [username.trim(), email.trim()]
     );
 
@@ -91,7 +91,7 @@ router.post('/users', async (req, res) => {
     const userStatus = status === 'inactive' ? 'inactive' : 'active';
 
     const [result] = await pool.query(`
-      INSERT INTO users (username, email, password_hash, full_name, role, status)
+      INSERT INTO loan_users (username, email, password_hash, full_name, role, status)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [username.trim(), email.trim(), passwordHash, full_name.trim(), userRole, userStatus]);
 
@@ -116,7 +116,7 @@ router.put('/users/:id', async (req, res) => {
   const { full_name, email, role, status, password } = req.body;
 
   try {
-    const [userRows] = await pool.query('SELECT * FROM users WHERE id = ?', [targetUserId]);
+    const [userRows] = await pool.query('SELECT * FROM loan_users WHERE id = ?', [targetUserId]);
     if (userRows.length === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -127,7 +127,7 @@ router.put('/users/:id', async (req, res) => {
     }
 
     await pool.query(`
-      UPDATE users SET
+      UPDATE loan_users SET
         full_name = COALESCE(?, full_name),
         email = COALESCE(?, email),
         role = COALESCE(?, role),
@@ -163,7 +163,7 @@ router.delete('/users/:id', async (req, res) => {
   }
 
   try {
-    const [result] = await pool.query('DELETE FROM users WHERE id = ?', [targetUserId]);
+    const [result] = await pool.query('DELETE FROM loan_users WHERE id = ?', [targetUserId]);
     if (result.affectedRows === 0) {
       return res.status(404).json({ success: false, error: 'User not found' });
     }
@@ -189,7 +189,7 @@ router.get('/activity/monthly', async (req, res) => {
         SUM(CASE WHEN type = 'given' THEN principal_amount ELSE 0 END) as total_given_amount,
         SUM(CASE WHEN type = 'taken' THEN principal_amount ELSE 0 END) as total_taken_amount,
         COUNT(DISTINCT user_id) as active_users_count
-      FROM loans
+      FROM loan_loans
       GROUP BY month_period
       ORDER BY month_period DESC
       LIMIT 12
@@ -255,7 +255,7 @@ router.get('/logs', async (req, res) => {
   const { limit = 50, status_code, client_type } = req.query;
 
   try {
-    let sql = 'SELECT * FROM security_logs WHERE 1=1';
+    let sql = 'SELECT * FROM loan_security_logs WHERE 1=1';
     const params = [];
 
     if (status_code) {

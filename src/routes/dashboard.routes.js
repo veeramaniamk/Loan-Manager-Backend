@@ -34,10 +34,10 @@ router.get('/summary', async (req, res) => {
           COALESCE((
             SELECT SUM(p.amount) 
             FROM loan_payments p 
-            JOIN loans l2 ON p.loan_id = l2.id 
+            JOIN loan_loans l2 ON p.loan_id = l2.id 
             WHERE l2.user_id = ? AND l2.type = 'given'
           ), 0) as total_given_repaid
-        FROM loans l
+        FROM loan_loans l
         WHERE l.user_id = ? AND l.type = 'given'
       `, [userId, userId]),
 
@@ -48,17 +48,17 @@ router.get('/summary', async (req, res) => {
           COALESCE((
             SELECT SUM(p.amount) 
             FROM loan_payments p 
-            JOIN loans l2 ON p.loan_id = l2.id 
+            JOIN loan_loans l2 ON p.loan_id = l2.id 
             WHERE l2.user_id = ? AND l2.type = 'taken'
           ), 0) as total_taken_repaid
-        FROM loans l
+        FROM loan_loans l
         WHERE l.user_id = ? AND l.type = 'taken'
       `, [userId, userId]),
 
       // 3. Today's Given Loans
       pool.query(`
         SELECT COALESCE(SUM(principal_amount), 0) as amount 
-        FROM loans 
+        FROM loan_loans 
         WHERE user_id = ? AND type = 'given' AND issue_date = ?
       `, [userId, today]),
 
@@ -66,7 +66,7 @@ router.get('/summary', async (req, res) => {
       pool.query(`
         SELECT COALESCE(SUM(p.amount), 0) as amount 
         FROM loan_payments p 
-        JOIN loans l ON p.loan_id = l.id 
+        JOIN loan_loans l ON p.loan_id = l.id 
         WHERE l.user_id = ? AND l.type = 'taken' AND p.payment_date = ?
       `, [userId, today]),
 
@@ -74,14 +74,14 @@ router.get('/summary', async (req, res) => {
       pool.query(`
         SELECT COALESCE(SUM(p.amount), 0) as amount 
         FROM loan_payments p 
-        JOIN loans l ON p.loan_id = l.id 
+        JOIN loan_loans l ON p.loan_id = l.id 
         WHERE l.user_id = ? AND l.type = 'given' AND p.payment_date = ?
       `, [userId, today]),
 
       // 6. Today's Taken Loans (Borrowed today)
       pool.query(`
         SELECT COALESCE(SUM(principal_amount), 0) as amount 
-        FROM loans 
+        FROM loan_loans 
         WHERE user_id = ? AND type = 'taken' AND issue_date = ?
       `, [userId, today]),
 
@@ -110,8 +110,8 @@ router.get('/summary', async (req, res) => {
             WHEN l.due_date = ? AND (l.principal_amount - COALESCE(SUM(pay.amount), 0)) > 0 THEN 1 
             ELSE 0 
           END as is_due_today
-        FROM loans l
-        JOIN people p ON l.person_id = p.id
+        FROM loan_loans l
+        JOIN loan_people p ON l.person_id = p.id
         LEFT JOIN loan_payments pay ON l.id = pay.loan_id
         WHERE l.user_id = ?
         GROUP BY l.id, p.name, p.phone
@@ -131,7 +131,7 @@ router.get('/summary', async (req, res) => {
           SUM(principal_amount) as total_amount,
           SUM(CASE WHEN type = 'given' THEN principal_amount ELSE 0 END) as given_amount,
           SUM(CASE WHEN type = 'taken' THEN principal_amount ELSE 0 END) as taken_amount
-        FROM loans
+        FROM loan_loans
         WHERE user_id = ?
         GROUP BY location_name
         ORDER BY total_amount DESC

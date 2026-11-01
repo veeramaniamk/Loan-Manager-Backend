@@ -10,7 +10,7 @@ router.use(validatePipeline);
  */
 async function syncLoanStatus(connection, loanId) {
   const [loanRows] = await connection.query(
-    'SELECT principal_amount, due_date, status FROM loans WHERE id = ?',
+    'SELECT principal_amount, due_date, status FROM loan_loans WHERE id = ?',
     [loanId]
   );
   if (loanRows.length === 0) return;
@@ -34,7 +34,7 @@ async function syncLoanStatus(connection, loanId) {
     newStatus = 'overdue';
   }
 
-  await connection.query('UPDATE loans SET status = ? WHERE id = ?', [newStatus, loanId]);
+  await connection.query('UPDATE loan_loans SET status = ? WHERE id = ?', [newStatus, loanId]);
 }
 
 /**
@@ -55,8 +55,8 @@ router.get('/', async (req, res) => {
         p.email as person_email,
         COALESCE(SUM(pay.amount), 0) as total_paid,
         (l.principal_amount - COALESCE(SUM(pay.amount), 0)) as remaining_balance
-      FROM loans l
-      JOIN people p ON l.person_id = p.id
+      FROM loan_loans l
+      JOIN loan_people p ON l.person_id = p.id
       LEFT JOIN loan_payments pay ON l.id = pay.loan_id
       WHERE l.user_id = ?
     `;
@@ -127,8 +127,8 @@ router.get('/:id', async (req, res) => {
         p.location as person_location,
         COALESCE(SUM(pay.amount), 0) as total_paid,
         (l.principal_amount - COALESCE(SUM(pay.amount), 0)) as remaining_balance
-      FROM loans l
-      JOIN people p ON l.person_id = p.id
+      FROM loan_loans l
+      JOIN loan_people p ON l.person_id = p.id
       LEFT JOIN loan_payments pay ON l.id = pay.loan_id
       WHERE l.id = ? AND l.user_id = ?
       GROUP BY l.id, p.name, p.phone, p.email, p.location
@@ -198,7 +198,7 @@ router.post('/', async (req, res) => {
     // If person_id is not provided, but person_name is, find or create the person
     if (!person_id && person_name && person_name.trim()) {
       const [existingPerson] = await connection.query(
-        'SELECT id FROM people WHERE user_id = ? AND name = ?',
+        'SELECT id FROM loan_people WHERE user_id = ? AND name = ?',
         [userId, person_name.trim()]
       );
 
@@ -206,7 +206,7 @@ router.post('/', async (req, res) => {
         person_id = existingPerson[0].id;
       } else {
         const [newPerson] = await connection.query(`
-          INSERT INTO people (user_id, name, phone, location)
+          INSERT INTO loan_people (user_id, name, phone, location)
           VALUES (?, ?, ?, ?)
         `, [userId, person_name.trim(), person_phone || null, location || null]);
         person_id = newPerson.insertId;
@@ -220,7 +220,7 @@ router.post('/', async (req, res) => {
     }
 
     const [result] = await connection.query(`
-      INSERT INTO loans 
+      INSERT INTO loan_loans 
       (user_id, person_id, type, principal_amount, interest_rate, issue_date, due_date, location, status, notes)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?)
     `, [
@@ -275,7 +275,7 @@ router.put('/:id', async (req, res) => {
     await connection.beginTransaction();
 
     const [existing] = await connection.query(
-      'SELECT id FROM loans WHERE id = ? AND user_id = ?',
+      'SELECT id FROM loan_loans WHERE id = ? AND user_id = ?',
       [loanId, userId]
     );
 
@@ -286,7 +286,7 @@ router.put('/:id', async (req, res) => {
     }
 
     await connection.query(`
-      UPDATE loans SET
+      UPDATE loan_loans SET
         person_id = COALESCE(?, person_id),
         type = COALESCE(?, type),
         principal_amount = COALESCE(?, principal_amount),
@@ -334,7 +334,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      'DELETE FROM loans WHERE id = ? AND user_id = ?',
+      'DELETE FROM loan_loans WHERE id = ? AND user_id = ?',
       [loanId, userId]
     );
 
@@ -368,7 +368,7 @@ router.post('/:id/payments', async (req, res) => {
     await connection.beginTransaction();
 
     const [loanRows] = await connection.query(
-      'SELECT id FROM loans WHERE id = ? AND user_id = ?',
+      'SELECT id FROM loan_loans WHERE id = ? AND user_id = ?',
       [loanId, userId]
     );
 

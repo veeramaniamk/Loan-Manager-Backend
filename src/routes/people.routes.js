@@ -22,17 +22,17 @@ router.get('/', async (req, res) => {
         COALESCE((
           SELECT SUM(pay.amount) 
           FROM loan_payments pay 
-          JOIN loans l_sub ON pay.loan_id = l_sub.id 
+          JOIN loan_loans l_sub ON pay.loan_id = l_sub.id 
           WHERE l_sub.person_id = p.id AND l_sub.type = 'given'
         ), 0) as total_given_repaid,
         COALESCE((
           SELECT SUM(pay.amount) 
           FROM loan_payments pay 
-          JOIN loans l_sub ON pay.loan_id = l_sub.id 
+          JOIN loan_loans l_sub ON pay.loan_id = l_sub.id 
           WHERE l_sub.person_id = p.id AND l_sub.type = 'taken'
         ), 0) as total_taken_repaid
-      FROM people p
-      LEFT JOIN loans l ON p.id = l.person_id
+      FROM loan_people p
+      LEFT JOIN loan_loans l ON p.id = l.person_id
       WHERE p.user_id = ?
       GROUP BY p.id
       ORDER BY p.name ASC
@@ -67,7 +67,7 @@ router.get('/:id', async (req, res) => {
 
   try {
     const [personRows] = await pool.query(
-      'SELECT * FROM people WHERE id = ? AND user_id = ?',
+      'SELECT * FROM loan_people WHERE id = ? AND user_id = ?',
       [personId, userId]
     );
 
@@ -82,7 +82,7 @@ router.get('/:id', async (req, res) => {
         l.*,
         COALESCE(SUM(pay.amount), 0) as total_paid,
         (l.principal_amount - COALESCE(SUM(pay.amount), 0)) as remaining_balance
-      FROM loans l
+      FROM loan_loans l
       LEFT JOIN loan_payments pay ON l.id = pay.loan_id
       WHERE l.person_id = ? AND l.user_id = ?
       GROUP BY l.id
@@ -117,7 +117,7 @@ router.post('/', async (req, res) => {
 
   try {
     const [result] = await pool.query(`
-      INSERT INTO people (user_id, name, phone, email, location, notes)
+      INSERT INTO loan_people (user_id, name, phone, email, location, notes)
       VALUES (?, ?, ?, ?, ?, ?)
     `, [userId, name.trim(), phone || null, email || null, location || null, notes || null]);
 
@@ -148,7 +148,7 @@ router.put('/:id', async (req, res) => {
 
   try {
     const [result] = await pool.query(`
-      UPDATE people 
+      UPDATE loan_people 
       SET name = ?, phone = ?, email = ?, location = ?, notes = ?
       WHERE id = ? AND user_id = ?
     `, [name.trim(), phone || null, email || null, location || null, notes || null, personId, userId]);
@@ -175,7 +175,7 @@ router.delete('/:id', async (req, res) => {
 
   try {
     const [result] = await pool.query(
-      'DELETE FROM people WHERE id = ? AND user_id = ?',
+      'DELETE FROM loan_people WHERE id = ? AND user_id = ?',
       [personId, userId]
     );
 

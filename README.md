@@ -1,12 +1,12 @@
 # Loan Manager Backend (Node.js & MySQL)
 
 Production-ready Node.js Express backend featuring a multi-layered security validation pipeline:
-- **Session Validation**: MySQL persistent sessions via `express-mysql-session`.
+- **Session Validation**: MySQL persistent sessions via `express-mysql-session` (`loan_sessions`).
 - **Cookie Validation**: Enforces authentication cookie presence.
 - **CSRF Token Validation**: Cryptographic double-submit / session-backed CSRF protection.
 - **JWT Authorization**: Signed bearer token with expiration.
 - **Cross-Identity Verification**: Session User ID must match JWT User ID.
-- **Security Audit Failure Logging**: Any failed attempt logs HTTP request parameters, body, sanitized headers, response, and exact failure reason into MySQL `security_logs`.
+- **Security Audit Failure Logging**: Any failed attempt logs HTTP request parameters, body, sanitized headers, response, and exact failure reason into MySQL `loan_security_logs`.
 - **Android App Support**: Seamlessly accepts CookieJar session cookies and headers for Android clients.
 
 ## Configuration
