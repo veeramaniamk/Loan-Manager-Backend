@@ -15,6 +15,24 @@ const { pool } = require('../config/db');
  * Any failure logs the full request details into `security_logs` table.
  */
 async function validatePipeline(req, res, next) {
+  // Attempt fallback session retrieval if req.session is empty but sid provided
+  if (!req.session || !req.session.userId) {
+    const rawSid = req.headers['x-session-id'] || req.cookies?.['connect.sid'];
+    if (rawSid) {
+      const sid = String(rawSid).startsWith('s:') ? String(rawSid).slice(2).split('.')[0] : String(rawSid);
+      try {
+        const { sessionStore } = require('../server');
+        if (sessionStore && sessionStore.get) {
+          const sessData = await sessionStore.get(sid);
+          if (sessData && sessData.userId) {
+            req.session = Object.assign(req.session || {}, sessData);
+            req.sessionID = sid;
+          }
+        }
+      } catch (e) {}
+    }
+  }
+
   // 1. Session Validation
   if (!req.session || !req.session.userId) {
     const errorMsg = 'Session validation failed: No active or valid session found. Please login.';
@@ -24,8 +42,10 @@ async function validatePipeline(req, res, next) {
   }
 
   // 2. Cookie Validation
-  // Check for presence of cookies (either cookie-parser parsed req.cookies or raw Cookie header)
-  const hasCookies = (req.cookies && Object.keys(req.cookies).length > 0) || Boolean(req.headers.cookie);
+  // Check for presence of cookies (either cookie-parser parsed req.cookies or raw Cookie header or x-session-id)
+  const hasCookies = (req.cookies && Object.keys(req.cookies).length > 0) || 
+                     Boolean(req.headers.cookie) || 
+                     Boolean(req.headers['x-session-id']);
   if (!hasCookies) {
     const errorMsg = 'Cookie validation failed: Required authentication cookies were not provided with the request.';
     const resPayload = { success: false, error: errorMsg, failedStage: 'COOKIE_VALIDATION' };

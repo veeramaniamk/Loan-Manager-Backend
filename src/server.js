@@ -46,9 +46,10 @@ app.use(cors({
     'csrf-token',
     'x-client-platform',
     'x-client-type',
+    'x-session-id',
     'Cookie'
   ],
-  exposedHeaders: ['Set-Cookie', 'x-csrf-token'],
+  exposedHeaders: ['Set-Cookie', 'x-csrf-token', 'x-session-id'],
   maxAge: 86400
 }));
 
@@ -127,7 +128,7 @@ app.use(async (err, req, res, next) => {
 async function startServer() {
   try {
     await initDatabase();
-    app.listen(PORT, () => {
+    app.listen(PORT, '0.0.0.0', () => {
       console.log(`🚀 Loan Manager Backend server running on http://localhost:${PORT}`);
     });
   } catch (err) {
@@ -137,3 +138,5 @@ async function startServer() {
 }
 
 startServer();
+
+module.exports = { app, sessionStore };

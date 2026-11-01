@@ -77,6 +77,7 @@ class PersistentCookieJar : CookieJar {
 class LoanManagerAuthInterceptor : Interceptor {
     var jwtToken: String? = null
     var csrfToken: String? = null
+    var sessionId: String? = null
 
     override fun intercept(chain: Interceptor.Chain): Response {
         val original = chain.request()
@@ -95,6 +96,11 @@ class LoanManagerAuthInterceptor : Interceptor {
         csrfToken?.let {
             builder.header("x-csrf-token", it)
             builder.header("x-xsrf-token", it)
+        }
+
+        // 4. Attach Session ID header if present (works with or without CookieJar)
+        sessionId?.let {
+            builder.header("x-session-id", it)
         }
 
         return chain.proceed(builder.build())

@@ -36,8 +36,6 @@ router.get('/csrf', (req, res) => {
  * @access  Public
  */
 router.post('/login', async (req, res) => {
-  console.time('LOGIN_TOTAL');
-  console.time('LOGIN_VALIDATION');
   const { username, password } = req.body;
 
   if (!username || !password) {
@@ -46,15 +44,12 @@ router.post('/login', async (req, res) => {
     await logSecurityFailure(req, res, 400, errorMsg, resPayload);
     return res.status(400).json(resPayload);
   }
-  console.timeEnd('LOGIN_VALIDATION');
 
   try {
-    console.time('LOGIN_DB_USER');
     const [rows] = await pool.query(
       'SELECT * FROM users WHERE username = ? OR email = ?',
       [username, username]
     );
-    console.timeEnd('LOGIN_DB_USER');
 
     if (rows.length === 0) {
       const errorMsg = 'Invalid username or password.';
@@ -72,9 +67,7 @@ router.post('/login', async (req, res) => {
       return res.status(403).json(resPayload);
     }
 
-    console.time('LOGIN_BCRYPT');
     const isMatch = await bcrypt.compare(password, user.password_hash);
-    console.timeEnd('LOGIN_BCRYPT');
     if (!isMatch) {
       const errorMsg = 'Invalid username or password.';
       const resPayload = { success: false, error: errorMsg };
@@ -82,7 +75,6 @@ router.post('/login', async (req, res) => {
       return res.status(401).json(resPayload);
     }
 
-    console.time('LOGIN_TOKEN_GEN');
     // 1. Establish Session
     req.session.userId = user.id;
     req.session.username = user.username;
@@ -109,13 +101,9 @@ router.post('/login', async (req, res) => {
     res.cookie('jwt_token', token, { ...cookieOptions, httpOnly: true });
     res.cookie('XSRF-TOKEN', csrfToken, { ...cookieOptions, httpOnly: false });
     res.cookie('session_active', 'true', { ...cookieOptions, httpOnly: false });
-    console.timeEnd('LOGIN_TOKEN_GEN');
 
-    console.time('LOGIN_SESSION_SAVE');
     // Explicitly save session before returning response
     req.session.save((saveErr) => {
-      console.timeEnd('LOGIN_SESSION_SAVE');
-      console.timeEnd('LOGIN_TOTAL');
       if (saveErr) {
         console.error('Session save error:', saveErr);
       }
@@ -137,7 +125,6 @@ router.post('/login', async (req, res) => {
     });
 
   } catch (err) {
-    console.timeEnd('LOGIN_TOTAL');
     console.error('Login error:', err);
     const errorMsg = 'Internal server error during login.';
     const resPayload = { success: false, error: errorMsg };
