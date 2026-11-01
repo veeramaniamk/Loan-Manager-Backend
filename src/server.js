@@ -105,6 +105,7 @@ app.use('/api/auth', require('./routes/auth.routes'));
 app.use('/api/dashboard', require('./routes/dashboard.routes'));
 app.use('/api/loans', require('./routes/loans.routes'));
 app.use('/api/people', require('./routes/people.routes'));
+app.use('/api/catering', require('./routes/catering.routes'));
 app.use('/api/admin', require('./routes/admin.routes'));
 
 // Fallback for undefined routes: Log failure and return 404

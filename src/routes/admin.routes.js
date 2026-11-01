@@ -280,4 +280,158 @@ router.get('/logs', async (req, res) => {
   }
 });
 
+/**
+ * @route   GET /api/admin/catering/summary
+ * @desc    System-wide catering metrics overview
+ * @access  Admin Only
+ */
+router.get('/catering/summary', async (req, res) => {
+  try {
+    const [services] = await pool.query(`
+      SELECT 
+        COUNT(id) as total_services,
+        COUNT(CASE WHEN status = 'upcoming' THEN 1 END) as upcoming_services,
+        COALESCE(SUM(total_amount), 0) as total_revenue,
+        COALESCE(SUM(CASE WHEN status = 'upcoming' THEN total_amount ELSE 0 END), 0) as total_upcoming_amount,
+        COALESCE(SUM(pending_amount), 0) as total_pending_customer_amount
+      FROM loan_catering_services
+    `);
+
+    const [staff] = await pool.query(`
+      SELECT 
+        COUNT(DISTINCT member_id) as total_staff_count,
+        COALESCE(SUM(total_salary), 0) as total_staff_salary,
+        COALESCE(SUM(paid_amount), 0) as total_staff_paid
+      FROM loan_catering_service_staff
+    `);
+
+    const s = services[0];
+    const st = staff[0];
+    const totalStaffSalary = parseFloat(st.total_staff_salary || 0);
+    const totalStaffPaid = parseFloat(st.total_staff_paid || 0);
+
+    return res.json({
+      success: true,
+      data: {
+        totalServices: parseInt(s.total_services, 10),
+        upcomingServices: parseInt(s.upcoming_services, 10),
+        totalRevenue: parseFloat(s.total_revenue),
+        totalUpcomingAmount: parseFloat(s.total_upcoming_amount),
+        totalPendingCustomerAmount: parseFloat(s.total_pending_customer_amount),
+        totalStaffCount: parseInt(st.total_staff_count, 10),
+        totalStaffSalary,
+        totalStaffPaid,
+        pendingStaffSalaryToPay: Math.max(0, totalStaffSalary - totalStaffPaid)
+      }
+    });
+  } catch (err) {
+    console.error('Error fetching admin catering summary:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve admin catering summary' });
+  }
+});
+
+/**
+ * @route   GET /api/admin/catering/staff-by-person
+ * @desc    Audit all catering staff members and their salary balances by person
+ * @access  Admin Only
+ */
+router.get('/catering/staff-by-person', async (req, res) => {
+  try {
+    const [staffList] = await pool.query(`
+      SELECT 
+        m.id as member_id,
+        m.name as member_name,
+        m.phone as member_phone,
+        m.role as member_role,
+        m.notes as member_notes,
+        m.created_at,
+        u.id as user_id,
+        u.full_name as user_name,
+        u.username,
+        COUNT(ss.id) as total_services_worked,
+        COALESCE(SUM(ss.session_count), 0) as total_sessions_worked,
+        COALESCE(SUM(ss.total_salary), 0) as total_salary_earned,
+        COALESCE(SUM(ss.paid_amount), 0) as total_salary_paid
+      FROM loan_catering_members m
+      JOIN loan_users u ON m.user_id = u.id
+      LEFT JOIN loan_catering_service_staff ss ON m.id = ss.member_id
+      GROUP BY m.id
+      ORDER BY total_salary_earned DESC, m.name ASC
+    `);
+
+    const formatted = staffList.map(item => {
+      const earned = parseFloat(item.total_salary_earned || 0);
+      const paid = parseFloat(item.total_salary_paid || 0);
+      return {
+        ...item,
+        total_services_worked: parseInt(item.total_services_worked, 10),
+        total_sessions_worked: parseInt(item.total_sessions_worked, 10),
+        total_salary_earned: earned,
+        total_salary_paid: paid,
+        pending_balance: Math.max(0, earned - paid)
+      };
+    });
+
+    return res.json({ success: true, data: formatted });
+  } catch (err) {
+    console.error('Error fetching admin catering staff by person:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve staff salary audit' });
+  }
+});
+
+/**
+ * @route   GET /api/admin/catering/staff-logs
+ * @desc    Get all catering salary payment history logs across users or by person
+ * @access  Admin Only
+ */
+router.get('/catering/staff-logs', async (req, res) => {
+  const { member_id, user_id, limit = 100 } = req.query;
+
+  try {
+    let sql = `
+      SELECT 
+        p.*,
+        m.name as member_name,
+        m.phone as member_phone,
+        m.role as member_role,
+        s.service_name,
+        s.service_date,
+        s.location as service_location,
+        u.full_name as user_name,
+        u.username
+      FROM loan_catering_staff_payments p
+      JOIN loan_catering_members m ON p.member_id = m.id
+      JOIN loan_users u ON p.user_id = u.id
+      LEFT JOIN loan_catering_services s ON p.service_id = s.id
+      WHERE 1=1
+    `;
+    const params = [];
+
+    if (member_id) {
+      sql += ' AND p.member_id = ?';
+      params.push(member_id);
+    }
+
+    if (user_id) {
+      sql += ' AND p.user_id = ?';
+      params.push(user_id);
+    }
+
+    sql += ' ORDER BY p.payment_date DESC, p.created_at DESC LIMIT ?';
+    params.push(parseInt(limit, 10));
+
+    const [logs] = await pool.query(sql, params);
+
+    const formatted = logs.map(l => ({
+      ...l,
+      amount: parseFloat(l.amount)
+    }));
+
+    return res.json({ success: true, data: formatted });
+  } catch (err) {
+    console.error('Error fetching admin catering logs:', err);
+    return res.status(500).json({ success: false, error: 'Failed to retrieve catering logs' });
+  }
+});
+
 module.exports = router;
